@@ -96,7 +96,10 @@ create or replace procedure realizarTraspaso (
     v_reserva_origen     reserva_hospital%rowtype;
     v_cantidad_destino   reserva_hospital.cantidad%type;
 begin
-    
+    -- Validar que la cantidad de traspaso no sea menor que 0
+    if m_cantidad < 0 then
+        raise_application_error(-20007, 'Valor de cantidad de traspaso por debajo de lo requerido');
+    end if;
 
     -- Verificar si el hospital origen existe
     begin
