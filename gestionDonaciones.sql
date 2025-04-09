@@ -149,16 +149,31 @@ create or replace procedure realizarDonacion (
     m_cantidad      donacion.cantidad%type,
     m_hospital      hospital.id_hospital%type
 ) is
-    v_donante                donante%rowtype;
+    v_donante               donante%rowtype;
     v_last_donation_date    date;
     v_tipo_sangre           tipo_sangre.id_tipo_sangre%type;
     v_existente             integer;
 begin
     
-    -- Verificar donante
-    select * into v_donante
-    from donante
-    where NIF = m_NIF_donante;
+    -- Verificar si el donante existe
+    begin
+        select * into v_donante
+        from donante
+        where NIF = m_NIF_donante;
+    exception
+        when no_data_found then
+            raise_application_error(-20001, 'Donante inexistente');
+    end;
+
+    -- Verificar si el tipo de sangre existe
+    begin
+        select id_tipo_sangre into v_tipo_sangre
+        from tipo_sangre
+        where id_tipo_sangre = v_donante.id_tipo_sangre;
+    exception
+        when no_data_found then
+            raise_application_error(-20002, 'Tipo Sangre Inexistente');
+    end;
 
     -- Verificar fecha de última donación
     select max(fecha_donacion) into v_last_donation_date
@@ -194,7 +209,7 @@ begin
 
     exception
     when no_data_found then
-        raise_application_error(-20001, 'Donante inexistente');
+        raise_application_error(-20000, 'Error dato no encontrado');
     when others then
         rollback;
         raise;
