@@ -96,6 +96,8 @@ create or replace procedure realizarTraspaso (
     v_reserva_origen     reserva_hospital%rowtype;
     v_cantidad_destino   reserva_hospital.cantidad%type;
 begin
+    
+
     -- Verificar si el hospital origen existe
     begin
         select * into v_reserva_origen
@@ -202,6 +204,17 @@ begin
     select max(fecha_donacion) into v_last_donation_date
     from donacion
     where nif_donante = m_NIF_donante;
+
+    -- Si la última donación fue hace menos de 15 días, lanzar excepción
+    if v_last_donation_date is not null and trunc(SYSDATE) - v_last_donation_date < 15 then
+        raise_application_error(-20006, 'Donante excede el cupo de donación');
+    end if;
+
+    -- Validar la cantidad de la donación
+    if m_cantidad < 0 or m_cantidad > 0.45 then
+        raise_application_error(-20005, 'Valor de cantidad de donación incorrecto');
+    end if;
+
 
     -- Obtener tipo de sangre del donante
     v_tipo_sangre := v_donante.id_tipo_sangre;
