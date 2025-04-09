@@ -115,6 +115,11 @@ begin
       and id_tipo_sangre = m_tipo_sangre
     for update;
 
+    -- Verificar si hay suficiente reserva en el hospital origen
+    if v_reserva_origen.cantidad < m_cantidad then
+        raise_application_error(-20004, 'Valor de reserva por debajo de lo requerido');
+    end if;
+
     -- Actualizar la reserva del hospital origen
     update reserva_hospital
     set cantidad = cantidad - m_cantidad
