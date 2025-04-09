@@ -96,6 +96,18 @@ create or replace procedure realizarTraspaso (
     v_reserva_origen     reserva_hospital%rowtype;
     v_cantidad_destino   reserva_hospital.cantidad%type;
 begin
+    -- Verificar si el hospital origen existe
+    begin
+        select * into v_reserva_origen
+        from reserva_hospital
+        where id_hospital = m_hospital_origen
+          and id_tipo_sangre = m_tipo_sangre
+        for update;
+    exception
+        when no_data_found then
+            raise_application_error(-20003, 'Hospital Inexistente');
+    end;
+
     -- Comprobar que hay suficiente sangre en el hospital origen
     select * into v_reserva_origen
     from reserva_hospital
@@ -140,6 +152,12 @@ begin
     );
 
     commit;
+    exception
+    when no_data_found then
+        raise_application_error(-20000, 'Error dato no encontrado');
+    when others then
+        rollback;
+        raise;
 end;
 /
 
