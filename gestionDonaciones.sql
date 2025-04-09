@@ -95,9 +95,20 @@ create or replace procedure realizarTraspaso (
 ) is
     v_reserva_origen     reserva_hospital%rowtype;
     v_cantidad_destino   reserva_hospital.cantidad%type;
+    v_tipo_sangre           tipo_sangre.id_tipo_sangre%type;
 begin
+    -- Verificar si el tipo de sangre existe
+    begin
+        select id_tipo_sangre into v_tipo_sangre
+        from tipo_sangre
+        where id_tipo_sangre = m_tipo_sangre;
+    exception
+        when no_data_found then
+            raise_application_error(-20002, 'Tipo Sangre Inexistente');
+    end;
+
     -- Validar que la cantidad de traspaso no sea menor que 0
-    if m_cantidad < 0 then
+    if m_cantidad <= 0 then
         raise_application_error(-20007, 'Valor de cantidad de traspaso por debajo de lo requerido');
     end if;
 
@@ -191,16 +202,6 @@ begin
     exception
         when no_data_found then
             raise_application_error(-20001, 'Donante inexistente');
-    end;
-
-    -- Verificar si el tipo de sangre existe
-    begin
-        select id_tipo_sangre into v_tipo_sangre
-        from tipo_sangre
-        where id_tipo_sangre = v_donante.id_tipo_sangre;
-    exception
-        when no_data_found then
-            raise_application_error(-20002, 'Tipo Sangre Inexistente');
     end;
 
     -- Verificar fecha de última donación
@@ -379,17 +380,91 @@ begin
     end;
     
     -- Prueba caso TIPO_SANGRE_INEXISTENTE
+    begin
+        inicializa_test;
+        realizarTraspaso (1, 2, 999, 0.2);
+        dbms_output.put_line('KO, no detecta TIPO_SANGRE_INEXISTENTE');
+    exception
+        when others then
+            if sqlcode = -20002 then
+                dbms_output.put_line('OK, detecta TIPO_SANGRE_INEXISTENTE: '||sqlerrm);
+            else
+                dbms_output.put_line('KO, no detecta TIPO_SANGRE_INEXISTENTE: '||sqlerrm);
+            end if;
+    end;
     
     -- Prueba caso HOSPITAL_INEXISTENTE
-    
+    begin
+        inicializa_test;
+        realizarTraspaso (999, 2, 1, 0.2);
+        dbms_output.put_line('KO, no detecta HOSPITAL_INEXISTENTE');
+    exception
+        when others then
+            if sqlcode = -20003 then
+                dbms_output.put_line('OK, detecta HOSPITAL_INEXISTENTE: '||sqlerrm);
+            else
+                dbms_output.put_line('KO, no detecta HOSPITAL_INEXISTENTE: '||sqlerrm);
+            end if;
+    end;
+
     -- Prueba caso RESERVA_INSUFICIENTE
-    
+    begin
+        inicializa_test;
+        realizarTraspaso (1, 2, 1, 999);
+        dbms_output.put_line('KO, no detecta RESERVA_INSUFICIENTE');
+    exception
+        when others then
+            if sqlcode = -20004 then
+                dbms_output.put_line('OK, detecta RESERVA_INSUFICIENTE: '||sqlerrm);
+            else
+                dbms_output.put_line('KO, no detecta RESERVA_INSUFICIENTE: '||sqlerrm);
+            end if;
+    end;
+
     -- Prueba caso CANTIDAD_DONACION_INVALIDA
-    
+    begin
+        inicializa_test;
+        realizarDonacion ('12345678A', -0.1, 1);
+        dbms_output.put_line('KO, no detecta CANTIDAD_DONACION_INVALIDA');
+    exception
+        when others then
+            if sqlcode = -20005 then
+                dbms_output.put_line('OK, detecta CANTIDAD_DONACION_INVALIDA: '||sqlerrm);
+            else
+                dbms_output.put_line('KO, no detecta CANTIDAD_DONACION_INVALIDA: '||sqlerrm);
+            end if;
+    end;
+
     -- Prueba caso DONACION_EXCESIVA
-    
+    begin
+        inicializa_test;
+        insert into donacion (id_donacion, nif_donante, cantidad, fecha_donacion) 
+        values (999, '12345678A', 0.3, trunc(sysdate));
+        realizarDonacion ('12345678A', 0.4, 1);
+        dbms_output.put_line('KO, no detecta DONACION_EXCESIVA');
+    exception
+        when others then
+            if sqlcode = -20006 then
+                dbms_output.put_line('OK, detecta DONACION_EXCESIVA: '||sqlerrm);
+            else
+                dbms_output.put_line('KO, no detecta DONACION_EXCESIVA: '||sqlerrm);
+            end if;
+    end;
+
     -- Prueba caso CANTIDAD_TRASPASO_INVALIDA
-    
+    begin
+        inicializa_test;
+        realizarTraspaso (1, 2, 1, 0.0);
+        dbms_output.put_line('KO, no detecta CANTIDAD_TRASPASO_INVALIDA');
+    exception
+        when others then
+            if sqlcode = -20007 then
+                dbms_output.put_line('OK, detecta CANTIDAD_TRASPASO_INVALIDA: '||sqlerrm);
+            else
+                dbms_output.put_line('KO, no detecta CANTIDAD_TRASPASO_INVALIDA: '||sqlerrm);
+            end if;
+    end;
+
     -- Prueba caso todo correcto
     declare
       varContenidoRealDonacion      varchar(500);
