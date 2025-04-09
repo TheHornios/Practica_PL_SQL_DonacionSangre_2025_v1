@@ -145,12 +145,52 @@ end;
 
 
 create or replace procedure realizarDonacion (
-    m_NIF_donante donante.NIF%type,
-    m_cantidad donacion.cantidad%type,
-    m_hostpital hospital.id_hospital%type
+    m_NIF_donante   donante.NIF%type,
+    m_cantidad      donacion.cantidad%type,
+    m_hospital      hospital.id_hospital%type
 ) is
+    v_donante                donante%rowtype;
+    v_last_donation_date    date;
+    v_tipo_sangre           tipo_sangre.id_tipo_sangre%type;
+    v_existente             integer;
 begin
-  null;
+    
+    -- Verificar donante
+    select * into v_donante
+    from donante
+    where NIF = m_NIF_donante;
+
+    -- Verificar fecha de última donación
+    select max(fecha_donacion) into v_last_donation_date
+    from donacion
+    where nif_donante = m_NIF_donante;
+
+    -- Obtener tipo de sangre del donante
+    v_tipo_sangre := v_donante.id_tipo_sangre;
+
+    -- Insertar la donación
+    insert into donacion (
+        id_donacion, nif_donante, cantidad, fecha_donacion
+    )
+    values (
+        seq_donacion.NEXTVAL, m_NIF_donante, m_cantidad, SYSDATE
+    );
+
+    -- Actualizar o crear reserva
+    select count(*) into v_existente
+    from reserva_hospital
+    where id_hospital = m_hospital and id_tipo_sangre = v_tipo_sangre;
+
+    if v_existente > 0 then
+        update reserva_hospital
+        set cantidad = cantidad + m_cantidad
+        where id_hospital = m_hospital and id_tipo_sangre = v_tipo_sangre;
+    else
+        insert into reserva_hospital (id_hospital, id_tipo_sangre, cantidad)
+        values (m_hospital, v_tipo_sangre, m_cantidad);
+    end if;
+
+    commit;
 end;
 /
 
