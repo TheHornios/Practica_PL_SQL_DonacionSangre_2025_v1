@@ -87,18 +87,61 @@ create table traspaso (
 
 -------------------------------------------------------------------------------------
 
-
 create or replace procedure realizarTraspaso (
-    m_hostpital_origen hospital.id_hospital%type,
-    m_hospital_destino hospital.id_hospital%type,
-    m_tipo_sangre tipo_sangre.id_tipo_sangre%type,
-    m_cantidad reserva_hospital.cantidad%type
+    m_hospital_origen     hospital.id_hospital%type,
+    m_hospital_destino    hospital.id_hospital%type,
+    m_tipo_sangre         tipo_sangre.id_tipo_sangre%type,
+    m_cantidad            reserva_hospital.cantidad%type
 ) is
+    v_reserva_origen     reserva_hospital%rowtype;
+    v_cantidad_destino   reserva_hospital.cantidad%type;
 begin
-  null;
+    -- Comprobar que hay suficiente sangre en el hospital origen
+    select * into v_reserva_origen
+    from reserva_hospital
+    where id_hospital = m_hospital_origen
+      and id_tipo_sangre = m_tipo_sangre
+    for update;
+
+    -- Actualizar la reserva del hospital origen
+    update reserva_hospital
+    set cantidad = cantidad - m_cantidad
+    where id_hospital = m_hospital_origen
+      and id_tipo_sangre = m_tipo_sangre;
+
+    -- Verificar si el hospital destino ya tiene reserva del tipo
+    begin
+        select cantidad into v_cantidad_destino
+        from reserva_hospital
+        where id_hospital = m_hospital_destino
+          and id_tipo_sangre = m_tipo_sangre
+        for update;
+
+        -- Si existe, actualizar
+        update reserva_hospital
+        set cantidad = cantidad + m_cantidad
+        where id_hospital = m_hospital_destino
+          and id_tipo_sangre = m_tipo_sangre;
+    exception
+        when no_data_found then
+            -- Si no existe, crearla
+            insert into reserva_hospital (id_hospital, id_tipo_sangre, cantidad)
+            values (m_hospital_destino, m_tipo_sangre, m_cantidad);
+    end;
+
+    -- Registrar el traspaso
+    insert into traspaso (
+        id_traspaso, id_tipo_sangre, id_hospital_origen,
+        id_hospital_destino, cantidad, fecha_traspaso
+    )
+    values (
+        seq_traspaso.NEXTVAL, m_tipo_sangre, m_hospital_origen,
+        m_hospital_destino, m_cantidad, SYSDATE
+    );
+
+    commit;
 end;
 /
-
 
 
 create or replace procedure realizarDonacion (
