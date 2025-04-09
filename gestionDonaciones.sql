@@ -191,6 +191,13 @@ begin
     end if;
 
     commit;
+
+    exception
+    when no_data_found then
+        raise_application_error(-20001, 'Donante inexistente');
+    when others then
+        rollback;
+        raise;
 end;
 /
 
